@@ -38,6 +38,9 @@ class GoldApiProvider(
         .readTimeout(8, TimeUnit.SECONDS)
         .build()
 
+    // These are only used if BOTH GoldAPI and Yahoo Finance are unreachable (e.g. no network).
+    // They are fixed reference numbers, not real-time prices, so they must NEVER be tagged LIVE -
+    // doing so previously made the app show a frozen/wrong gold price under a green "LIVE" badge.
     private val baselineMetals = listOf(
         MarketItem(
             symbol = "XAU/USD",
@@ -49,8 +52,8 @@ class GoldApiProvider(
             low24h = 4425.00,
             volume24h = 184500.0,
             assetType = AssetType.GOLD,
-            source = "Gold Market Feed",
-            status = DataStatus.LIVE,
+            source = "Gold Market Feed (Offline Reference Price)",
+            status = DataStatus.DELAYED,
             lastUpdate = System.currentTimeMillis()
         ),
         MarketItem(
@@ -63,8 +66,8 @@ class GoldApiProvider(
             low24h = 64.80,
             volume24h = 82400.0,
             assetType = AssetType.GOLD,
-            source = "Silver Market Feed",
-            status = DataStatus.LIVE,
+            source = "Silver Market Feed (Offline Reference Price)",
+            status = DataStatus.DELAYED,
             lastUpdate = System.currentTimeMillis()
         ),
         MarketItem(
@@ -77,8 +80,8 @@ class GoldApiProvider(
             low24h = 1810.0,
             volume24h = 14200.0,
             assetType = AssetType.GOLD,
-            source = "Platinum Market Feed",
-            status = DataStatus.LIVE,
+            source = "Platinum Market Feed (Offline Reference Price)",
+            status = DataStatus.DELAYED,
             lastUpdate = System.currentTimeMillis()
         ),
         MarketItem(
@@ -91,8 +94,8 @@ class GoldApiProvider(
             low24h = 90.10,
             volume24h = 240000.0,
             assetType = AssetType.GOLD,
-            source = "Crude Oil Market Feed",
-            status = DataStatus.LIVE,
+            source = "Crude Oil Market Feed (Offline Reference Price)",
+            status = DataStatus.DELAYED,
             lastUpdate = System.currentTimeMillis()
         )
     )
@@ -117,26 +120,38 @@ class GoldApiProvider(
                             if (!body.isNullOrEmpty()) {
                                 val json = JSONObject(body)
                                 val price = json.optDouble("price", 0.0)
-                                val change = json.optDouble("chp", 0.0)
+                                // GoldAPI.io renamed "chp" -> "change_percent" (and "ch" -> "change")
+                                // in newer API versions. Support both so we don't silently show 0% change.
+                                val change = when {
+                                    json.has("change_percent") -> json.optDouble("change_percent", 0.0)
+                                    json.has("chp") -> json.optDouble("chp", 0.0)
+                                    else -> 0.0
+                                }
                                 val high = json.optDouble("high_price", 0.0)
                                 val low = json.optDouble("low_price", 0.0)
 
-                                results.add(
-                                    MarketItem(
-                                        symbol = "$symbol/$curr",
-                                        baseAsset = symbol,
-                                        quoteAsset = curr,
-                                        price = price,
-                                        change24h = change,
-                                        high24h = high,
-                                        low24h = low,
-                                        volume24h = 50000.0,
-                                        assetType = AssetType.GOLD,
-                                        source = "GoldAPI Live",
-                                        status = DataStatus.LIVE,
-                                        lastUpdate = System.currentTimeMillis()
+                                // GoldAPI can return HTTP 200 with an {"error": "..."} body (e.g. rate
+                                // limit or bad key). Skip those instead of showing a $0.00 price.
+                                if (json.has("error") || price <= 0.0) {
+                                    Log.w("GoldApiProvider", "Skipping invalid GoldAPI response for $symbol: $body")
+                                } else {
+                                    results.add(
+                                        MarketItem(
+                                            symbol = "$symbol/$curr",
+                                            baseAsset = symbol,
+                                            quoteAsset = curr,
+                                            price = price,
+                                            change24h = change,
+                                            high24h = high,
+                                            low24h = low,
+                                            volume24h = 50000.0,
+                                            assetType = AssetType.GOLD,
+                                            source = "GoldAPI Live",
+                                            status = DataStatus.LIVE,
+                                            lastUpdate = System.currentTimeMillis()
+                                        )
                                     )
-                                )
+                                }
                             }
                         }
                     }
@@ -169,7 +184,14 @@ class GoldApiProvider(
             return candles
         }
 
-        val basePrice = when {
+        // Last resort only: anchor the generated candles to the current quote (live if
+        // available) instead of a fixed 2025-era price, so the chart doesn't visibly
+        // disagree with the price shown elsewhere in the app.
+        val liveMatch = runCatching {
+            getMarketItems().find { it.symbol.equals(symbol, ignoreCase = true) || symbol.uppercase().contains(it.baseAsset) }
+        }.getOrNull()
+
+        val basePrice = liveMatch?.price?.takeIf { it > 0.0 } ?: when {
             symbol.uppercase().contains("XAU") || symbol.uppercase().contains("GOLD") -> 4476.50
             symbol.uppercase().contains("XAG") || symbol.uppercase().contains("SILVER") -> 66.75
             symbol.uppercase().contains("XPT") || symbol.uppercase().contains("PLATINUM") -> 1826.0
