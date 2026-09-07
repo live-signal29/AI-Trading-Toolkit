@@ -173,4 +173,30 @@ class TradingToolkitUnitTests {
         // Reset
         com.example.util.AdMobConfig.rewardedProExpiryTimestamp = 0L
     }
+
+    @Test
+    fun testCandlestickDataAcrossAssetClasses() = runBlocking {
+        val repo = com.example.data.repository.MarketRepository()
+
+        // 1. Crypto (BTC/USDT)
+        val cryptoCandles = repo.getCandles("BTC/USDT", "1h", 20, 80000.0)
+        assertTrue(cryptoCandles.isNotEmpty())
+        assertTrue(cryptoCandles.first().close > 0)
+        assertTrue(cryptoCandles.first().high >= cryptoCandles.first().low)
+
+        // 2. Metals (XAU/USD)
+        val goldCandles = repo.getCandles("XAU/USD", "1h", 20, 2900.0)
+        assertTrue(goldCandles.isNotEmpty())
+        assertTrue(goldCandles.first().close > 0)
+
+        // 3. Forex (EUR/USD)
+        val forexCandles = repo.getCandles("EUR/USD", "1h", 20, 1.08)
+        assertTrue(forexCandles.isNotEmpty())
+        assertTrue(forexCandles.first().close > 0)
+
+        // 4. Index (US30)
+        val indexCandles = repo.getCandles("US30", "1h", 20, 44000.0)
+        assertTrue(indexCandles.isNotEmpty())
+        assertTrue(indexCandles.first().close > 0)
+    }
 }

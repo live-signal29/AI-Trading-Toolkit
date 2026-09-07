@@ -38,6 +38,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -80,8 +81,15 @@ fun AnalyzerScreen(
     }
 
     val candles by viewModel.selectedCandles.collectAsState()
+    val isCandlesLoading by viewModel.isCandlesLoading.collectAsState()
     val smcAnalysis by viewModel.chartAnalysis.collectAsState()
     val selectedTimeframe by viewModel.selectedTimeframe.collectAsState()
+
+    LaunchedEffect(selectedItem?.symbol, selectedTimeframe) {
+        selectedItem?.let {
+            viewModel.loadCandles(it.symbol, selectedTimeframe)
+        }
+    }
 
     var isAnalyzing by remember { mutableStateOf(false) }
 
@@ -199,6 +207,7 @@ fun AnalyzerScreen(
             // Candlestick Chart View
             CandlestickChart(
                 candles = candles,
+                isLoading = isCandlesLoading,
                 showEMA20 = true,
                 showEMA50 = true,
                 showVolume = true
