@@ -16,6 +16,15 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Show Project Structure
+        run: |
+          echo "Repository root:"
+          pwd
+          echo "Files:"
+          ls -la
+          echo "Searching for gradlew:"
+          find . -name gradlew -type f
+
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
@@ -23,12 +32,37 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+      - name: Enter Android Project
+        run: |
+          if [ -f "./AI-Trading-Toolkit/gradlew" ]; then
+            echo "Android project found in AI-Trading-Toolkit/"
+          elif [ -f "./gradlew" ]; then
+            echo "Android project found in repository root"
+          else
+            echo "ERROR: gradlew was not found."
+            find . -maxdepth 4 -type f | sort | head -300
+            exit 1
+          fi
 
-      # Create the debug keystore required by the app's debugConfig
+      - name: Configure Android Project
+        run: |
+          if [ -f "./AI-Trading-Toolkit/gradlew" ]; then
+            cd AI-Trading-Toolkit
+          fi
+
+          chmod +x gradlew
+
+          echo "Android project:"
+          pwd
+          echo "Gradle wrapper:"
+          ls -la gradlew
+
       - name: Create Debug Keystore
         run: |
+          if [ -f "./AI-Trading-Toolkit/gradlew" ]; then
+            cd AI-Trading-Toolkit
+          fi
+
           keytool -genkeypair \
             -v \
             -keystore debug.keystore \
@@ -40,18 +74,19 @@ jobs:
             -validity 10000 \
             -dname "CN=Android Debug,O=Android,C=US"
 
-      - name: Verify Debug Keystore
-        run: |
-          test -f debug.keystore
-          echo "Debug keystore created successfully."
+          echo "Debug keystore created:"
+          ls -lh debug.keystore
 
       - name: Run Unit Tests
+        working-directory: AI-Trading-Toolkit
         run: ./gradlew :app:testDebugUnitTest --no-daemon
 
       - name: Build Debug APK
+        working-directory: AI-Trading-Toolkit
         run: ./gradlew :app:assembleDebug --no-daemon
 
       - name: Build Release Bundle (AAB) & APK
+        working-directory: AI-Trading-Toolkit
         run: |
           ./gradlew :app:bundleRelease --no-daemon
           ./gradlew :app:assembleRelease --no-daemon
@@ -60,19 +95,19 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ai-trading-toolkit-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          path: AI-Trading-Toolkit/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
 
       - name: Upload Release AAB Bundle
         uses: actions/upload-artifact@v4
         with:
           name: ai-trading-toolkit-release-aab
-          path: app/build/outputs/bundle/release/*.aab
+          path: AI-Trading-Toolkit/app/build/outputs/bundle/release/*.aab
           if-no-files-found: error
 
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
           name: ai-trading-toolkit-release-apk
-          path: app/build/outputs/apk/release/*.apk
+          path: AI-Trading-Toolkit/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
