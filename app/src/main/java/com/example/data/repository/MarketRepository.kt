@@ -13,6 +13,7 @@ import com.example.data.remote.ForexDataProvider
 import com.example.data.remote.GoldApiProvider
 import com.example.data.remote.MarketDataProvider
 import com.example.data.remote.NewsProvider
+import com.example.data.remote.YahooFinanceProvider
 import com.example.util.SmartMoneyConcepts
 import com.example.util.TechnicalAnalysisEngine
 import kotlinx.coroutines.Dispatchers
