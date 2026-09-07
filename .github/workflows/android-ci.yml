@@ -23,19 +23,28 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew || true
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Create Mock Upload Keystore if not provided
+        run: |
+          if [ ! -f "my-upload-key.jks" ] && [ -z "$KEYSTORE_PATH" ]; then
+            echo "Generating build keystore for CI release packaging..."
+            keytool -genkeypair -v -keystore my-upload-key.jks -alias upload -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Android CI, OU=Android, O=Organization, L=City, S=State, C=US"
+            echo "STORE_PASSWORD=android" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=android" >> $GITHUB_ENV
+          fi
 
       - name: Run Unit Tests
-        run: gradle :app:testDebugUnitTest --no-daemon
+        run: ./gradlew testDebugUnitTest --no-daemon
 
       - name: Build Debug APK
-        run: gradle :app:assembleDebug --no-daemon
+        run: ./gradlew assembleDebug --no-daemon
 
       - name: Build Release Bundle (AAB) & APK
         run: |
-          gradle :app:bundleRelease --no-daemon
-          gradle :app:assembleRelease --no-daemon
+          ./gradlew bundleRelease --no-daemon
+          ./gradlew assembleRelease --no-daemon
 
       - name: Upload Debug APK Artifact
         uses: actions/upload-artifact@v4
