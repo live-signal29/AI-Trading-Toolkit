@@ -61,9 +61,11 @@ import com.example.data.model.MarketItem
 import com.example.ui.components.AdBannerView
 import com.example.ui.components.AddCustomAssetSheet
 import com.example.ui.components.MarketCard
-import com.example.ui.components.PartnerAppsSection
-import com.example.ui.components.RewardedAdCard
+import com.example.ui.components.MoreAppsBottomSheet
+import com.example.ui.components.MoreAppsCardButton
 import com.example.ui.components.RiskDisclaimerBanner
+import com.example.ui.components.VipBadgeTrigger
+import com.example.ui.components.VipPassModalSheet
 import com.example.ui.theme.AccentCyan
 import com.example.ui.theme.BullishGreen
 import com.example.viewmodel.MarketViewModel
@@ -82,6 +84,8 @@ fun HomeScreen(
     val selectedFilter by viewModel.selectedAssetFilter.collectAsState()
     val watchlistItems by viewModel.watchlistItems.collectAsState()
     var showAddCustomSheet by remember { mutableStateOf(false) }
+    var showMoreAppsSheet by remember { mutableStateOf(false) }
+    var showVipSheet by remember { mutableStateOf(false) }
 
     val filteredItems = items.filter { item ->
         val matchesSearch = item.symbol.contains(searchQuery, ignoreCase = true) ||
@@ -119,6 +123,12 @@ fun HomeScreen(
                     }
                 },
                 actions = {
+                    // Relocated Rewarded VIP Pass trigger badge
+                    VipBadgeTrigger(
+                        onClick = { showVipSheet = true },
+                        modifier = Modifier.padding(end = 4.dp)
+                    )
+
                     IconButton(
                         onClick = { showAddCustomSheet = true },
                         modifier = Modifier.testTag("top_add_market_button")
@@ -164,14 +174,17 @@ fun HomeScreen(
             )
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
+            FloatingActionButton(
                 onClick = { showAddCustomSheet = true },
-                icon = { Icon(Icons.Default.Add, contentDescription = null) },
-                text = { Text("Add Market Data", fontWeight = FontWeight.Bold) },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.testTag("fab_add_custom_market_data")
-            )
+                shape = CircleShape,
+                modifier = Modifier
+                    .padding(bottom = 12.dp, end = 4.dp)
+                    .testTag("fab_add_custom_market_data")
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Add Market Data")
+            }
         },
         modifier = modifier.testTag("home_screen_scaffold")
     ) { paddingValues ->
@@ -180,7 +193,7 @@ fun HomeScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(horizontal = 14.dp),
-            contentPadding = PaddingValues(bottom = 80.dp),
+            contentPadding = PaddingValues(bottom = 100.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             // Search Bar
@@ -218,17 +231,11 @@ fun HomeScreen(
                 )
             }
 
-            // Voluntary Rewarded Ad Offer
+            // Consolidated "More Apps" category button (Replaces multiple individual cards & bulky banners)
             item {
-                RewardedAdCard(
-                    title = "Unlock 2-Hour VIP Pass",
-                    subtitle = "Watch a brief sponsored video to remove ads and unlock real-time VIP feeds"
+                MoreAppsCardButton(
+                    onClick = { showMoreAppsSheet = true }
                 )
-            }
-
-            // Ecosystem Apps & Official Broker Section
-            item {
-                PartnerAppsSection()
             }
 
             // Google AdMob Banner Ad
@@ -322,6 +329,18 @@ fun HomeScreen(
                         notes = notes
                     )
                 }
+            )
+        }
+
+        if (showMoreAppsSheet) {
+            MoreAppsBottomSheet(
+                onDismiss = { showMoreAppsSheet = false }
+            )
+        }
+
+        if (showVipSheet) {
+            VipPassModalSheet(
+                onDismiss = { showVipSheet = false }
             )
         }
     }
