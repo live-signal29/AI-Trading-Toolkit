@@ -1,0 +1,6 @@
+{
+  "name": "AI Trading Toolkit",
+  "description": "Professional trading utility for live crypto markets, technical scanning, chart analysis, risk calculators, position sizing, and local trading journal.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
